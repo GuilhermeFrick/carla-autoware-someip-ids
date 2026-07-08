@@ -13,8 +13,12 @@ else
 fi
 
 log "2/3 · setup-dev-env (docker): rocker + dependências de container"
+# --no-nvidia: NÃO instalar CUDA/driver no host. Rodamos tudo em Docker — a CUDA/cuDNN/TensorRT
+# já vêm na imagem do Autoware, e o host só precisa do driver + nvidia-container-toolkit (que a
+# VM GPU já traz). Sem essa flag, o Autoware tenta instalar 'nvidia-open' e conflita com o driver
+# pré-instalado da VM (libnvidia-gl-570 : Conflicts: libnvidia-gl).
 cd "${AUTOWARE_ROOT}"
-./setup-dev-env.sh -y docker
+./setup-dev-env.sh -y docker --no-nvidia
 
 log "3/3 · Pasta de mapas"
 mkdir -p "${AUTOWARE_MAP}"

@@ -1,0 +1,19 @@
+# Texto integral dos artigos (mantido local; evita redistribuir por direito autoral)
+references/*.txt
+
+# Config local (caminhos/IP da máquina) — versionar só config/env.example.sh
+config/env.sh
+
+# Logs
+*.log
+
+# Python / build
+__pycache__/
+*.pyc
+.venv/
+
+# Saídas de simulação (grandes)
+*.pcap
+*.pcap.labels.npy
+traffic_logs/
+results/

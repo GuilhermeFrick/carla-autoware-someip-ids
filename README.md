@@ -37,24 +37,83 @@ O **loop é fechado** (o controle volta ao CARLA) → o ataque produz **efeito f
 ## Documentos
 - [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) — desenho detalhado (ponte de 3 módulos, pontos de injeção, medidores).
 - [`docs/PLANO.md`](docs/PLANO.md) — plano por fases (0 a 4), marcos, dependências e riscos.
-- [`docs/SETUP-AWS-FASE0.md`](docs/SETUP-AWS-FASE0.md) — runbook do ambiente (AWS GPU · Ubuntu 22.04 · ROS2 Humble · Autoware · CARLA).
+- [`docs/SETUP-AWS-FASE0.md`](docs/SETUP-AWS-FASE0.md) — variante específica para AWS (opcional; o guia oficial é o abaixo).
 
-## Setup do ambiente (Fase 0)
-Ambiente-alvo: **instância GPU na AWS** (`g5.2xlarge`) com a AMI *Deep Learning Base OSS Nvidia
-Driver GPU (Ubuntu 22.04)*. Os scripts em [`setup/`](setup/) automatizam o runbook — clone o repo
-na instância e rode marco a marco:
+---
 
+# Setup do ambiente (Fase 0) — siga na ordem
+
+Tudo roda **em Docker**. O host só precisa de **driver NVIDIA + Docker + NVIDIA Container Toolkit**;
+a versão do Ubuntu do host é indiferente (22.04 ou 24.04). Legenda: **✓ validado** · **⏳ em iteração**.
+
+## 0. Provisionar a VM GPU
+Qualquer provedor que dê uma **VM de verdade** (não container — RunPod/Vast não servem, pois exigem
+Docker-in-Docker). Já testado: TensorDock / Hyperstack / DigitalOcean.
+- **GPU:** ≥ 16 GB VRAM (ideal 24 GB+ — ex.: RTX A6000, A5000, RTX 4090, L40).
+- **Imagem:** de preferência **"Ubuntu 22.04 … with Docker"** (já traz driver + Docker + toolkit).
+  Se for Ubuntu puro, o passo 2 instala o que faltar.
+- **Disco:** ≥ 250 GB (imagem do CARLA ~10 GB + imagens do Autoware, dezenas de GB).
+- **SSH:** cadastre sua chave pública; conecte por chave (sem senha).
+
+## 1. Conectar e clonar
 ```bash
-cp config/env.example.sh config/env.sh   # ajuste caminhos se quiser
-make gpu        # [3] valida GPU (host + Docker)
-make autoware   # [4] Autoware Universe via Docker
-make carla      # [5] baixa a imagem Docker do CARLA 0.9.15 + smoke test
-make bridge     # [6] diagnóstico da ponte autoware_carla_interface
-make fase0-run  # sobe CARLA + Autoware (tmux) → ego dirigindo
+ssh -i ~/.ssh/SUA_CHAVE ubuntu@IP_DA_VM        # usuário pode ser 'ubuntu' ou 'root'
+git clone https://github.com/GuilhermeFrick/carla-autoware-someip-ids.git
+cd carla-autoware-someip-ids
+cp config/env.example.sh config/env.sh
 ```
 
-Cada marco tem um ponto de parada para colar log (o ambiente roda no Ubuntu; o código é escrito no
-Windows). Detalhes e solução de problemas em [`docs/SETUP-AWS-FASE0.md`](docs/SETUP-AWS-FASE0.md).
+## 2. Validar a GPU — marco [3] ✓
+```bash
+make gpu        # nvidia-smi no host E dentro do Docker
+# Se reclamar do nvidia-container-toolkit (Ubuntu puro), rode antes:  make base
+```
+**OK quando:** aparece a GPU nas duas verificações (host e container).
+
+## 3. CARLA em Docker — marco [5] ✓
+```bash
+make carla      # baixa carlasim/carla:0.9.15 (~10 GB) + smoke test headless
+```
+**OK quando:** o log mostra o banner do Unreal (`4.26.x ... Release-4.26`) **sem erro de Vulkan**
+(o aviso `xdg-user-dir: not found` é inofensivo).
+
+## 4. Instalar o Autoware (Docker) — marco [4]
+```bash
+make autoware   # = ./setup-dev-env.sh -y docker --no-nvidia (NÃO instala CUDA no host)
+```
+> O `--no-nvidia` é essencial: sem ele, o Autoware tenta instalar `nvidia-open` e **conflita com o
+> driver já presente na VM** (`libnvidia-gl-... : Conflicts: libnvidia-gl`). A CUDA vem dentro do
+> container do Autoware.
+
+**OK quando:** o `PLAY RECAP` termina com **`failed=0`**.
+
+## 5. Subir o container do Autoware e achar a interface CARLA — ⏳
+```bash
+make run-autoware      # baixa a imagem do Autoware (grande) e entra no container
+# DENTRO do container:
+ros2 pkg list | grep -i carla
+```
+> A VM é **headless**: se o `run-autoware` falhar por X11/DISPLAY, cole o erro — ajustamos para o
+> modo sem interface (a visualização do rviz2 vem depois, via NICE DCV ou port-forward de SSH).
+> O resultado do `ros2 pkg list | grep -i carla` diz se a ponte `autoware_carla_interface` já vem na
+> imagem ou se precisamos adicioná-la.
+
+## 6. Ponte CARLA ⇄ Autoware — ⏳
+```bash
+make bridge     # diagnóstico (rode do host; a checagem real é DENTRO do container, passo 5)
+```
+Depende do resultado do passo 5. Aqui entra o `ros2 launch` da interface + o `pip install carla==0.9.15`
+dentro do container. **A definir por log.**
+
+## Objetivo da Fase 0
+Ego **dirigindo sozinho** no CARLA via Autoware (perception → planning → control), **ainda sem
+SOME/IP**. A ponte SOME/IP real é a Fase 1.
+
+## Pausar a VM (custo)
+Pare a VM quando não estiver usando. Em AWS/Azure/GCP/TensorDock/Hyperstack: **stop/deallocate** para
+de cobrar o compute (paga só o disco). No **DigitalOcean**, desligado **continua cobrando** → snapshot
++ destroy.
 
 ## Status
-Fase de **implementação — Fase 0** (subir o ambiente na AWS: ego dirigindo pelo Autoware, sem SOME/IP).
+**Fase 0 em andamento.** Validados: GPU no Docker (marco 3) e CARLA headless (marco 5). Em iteração:
+subir o container do Autoware (marco 4/5) e a ponte (marco 6).

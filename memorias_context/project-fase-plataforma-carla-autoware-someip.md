@@ -18,8 +18,13 @@ O `carla-someip` vira protótipo anterior (CAN-style, SOME/IP Python unidirecion
 
 **Decisões travadas (usuário):** (1) pilha SOME/IP = **vsomeip real** (não Python); (2) **Autoware
 Universe completo** (não mock); (3) **repo novo**; (4) ambiente pesado roda em **instância GPU na
-AWS** (decidido 2026-07-08: `g5.2xlarge`, AMI *Deep Learning Base OSS Nvidia Driver GPU Ubuntu 22.04*)
-— descartados WSL2 e bare-metal. Runbook em `docs/SETUP-AWS-FASE0.md`.
+AWS** (decidido 2026-07-08: `g4dn.2xlarge` T4/16GB — opção econômica; `g5.2xlarge` A10G/24GB é o
+upgrade se faltar VRAM). **AMI:** `Deep Learning Base AMI with Single CUDA (Ubuntu 24.04)`
+`ami-04be28fe3137c609b` x86 (região só tinha 24.04; DLAMI traz driver+CUDA+Docker+toolkit+conda).
+Descartados WSL2 e bare-metal. **Estratégia: tudo em Docker** — CARLA via imagem
+`carlasim/carla:0.9.15` e Autoware via container (ambos `--net=host`), então a versão do host 24.04
+é irrelevante. Setup automatizado em `setup/`+`scripts/`+`Makefile`+`docker-compose.yml`; runbook em
+`docs/SETUP-AWS-FASE0.md`.
 
 **Topologia (embasada em ASIRA/Dynamic Bridge):** o SOME/IP fica **no meio** do loop —
 `CARLA ⇄ROS2⇄ ponte ⇄SOME/IP⇄ ponte ⇄ROS2⇄ Autoware`, NÃO "CARLA⇄Autoware⇄SOME/IP". Só um

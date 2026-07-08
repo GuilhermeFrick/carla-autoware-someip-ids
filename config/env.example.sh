@@ -7,8 +7,11 @@
 export CARLA_VERSION="0.9.15"     # pinado: é a versão suportada pela ponte autoware_carla_interface
 export ROS_DISTRO="humble"        # Autoware Universe = ROS2 Humble (Ubuntu 22.04)
 
+# ── CARLA em Docker (imagem oficial) ──────────────────────────────────────
+export CARLA_IMAGE="carlasim/carla:${CARLA_VERSION}"
+
 # ── Caminhos no host Ubuntu (AWS) ─────────────────────────────────────────
-export CARLA_ROOT="${HOME}/carla"
+export CARLA_ROOT="${HOME}/carla"        # só p/ saídas/mapas; o CARLA roda em container
 export AUTOWARE_ROOT="${HOME}/autoware"
 export AUTOWARE_MAP="${HOME}/autoware_map"
 

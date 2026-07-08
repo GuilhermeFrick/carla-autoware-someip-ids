@@ -48,7 +48,7 @@ na instância e rode marco a marco:
 cp config/env.example.sh config/env.sh   # ajuste caminhos se quiser
 make gpu        # [3] valida GPU (host + Docker)
 make autoware   # [4] Autoware Universe via Docker
-make carla      # [5] CARLA 0.9.15 + API Python
+make carla      # [5] baixa a imagem Docker do CARLA 0.9.15 + smoke test
 make bridge     # [6] diagnóstico da ponte autoware_carla_interface
 make fase0-run  # sobe CARLA + Autoware (tmux) → ego dirigindo
 ```

@@ -1,33 +1,31 @@
 #!/usr/bin/env bash
-# Marco [5] do runbook: baixa e prepara o CARLA (versão pinada em config/env.sh) + API Python.
-# Uso:  bash setup/03_carla.sh
+# Marco [5] do runbook: prepara o CARLA em Docker (imagem oficial carlasim/carla).
+# NADA é instalado no host — o servidor roda no container, com Python próprio (resolve
+# o mismatch do Ubuntu 24.04). Uso:  bash setup/03_carla.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
-tarball="CARLA_${CARLA_VERSION}.tar.gz"
-url="https://github.com/carla-simulator/carla/releases/download/${CARLA_VERSION}/${tarball}"
+have docker || die "docker não encontrado. Rode: bash setup/01_base_deps.sh (ou use a DLAMI)."
 
-log "1/3 · Baixar/extrair CARLA ${CARLA_VERSION} em ${CARLA_ROOT}"
-mkdir -p "${CARLA_ROOT}"; cd "${CARLA_ROOT}"
-if [[ -f CarlaUE4.sh ]]; then
-  ok "CARLA já extraído"
-else
-  [[ -f "${tarball}" ]] || wget -O "${tarball}" "${url}"
-  tar -xzf "${tarball}"
-fi
+log "1/2 · Baixar imagem ${CARLA_IMAGE}"
+docker pull "${CARLA_IMAGE}"
 
-log "2/3 · Dependências de render (Vulkan)"
-sudo apt-get update && sudo apt-get install -y libvulkan1 vulkan-tools
-
-log "3/3 · API Python do CARLA"
-python3 -m pip install "carla==${CARLA_VERSION}" \
-  && ok "pip carla==${CARLA_VERSION} instalado" \
-  || warn "pip carla falhou — confira a versão do Python (o egg do 0.9.15 casa com 3.7–3.10). Use venv se preciso."
+log "2/2 · Smoke test — sobe o servidor headless por ~15s e mostra o log"
+docker rm -f carla-smoke >/dev/null 2>&1 || true
+docker run -d --rm --name carla-smoke --gpus all --net=host \
+  "${CARLA_IMAGE}" ./CarlaUE4.sh -RenderOffScreen -quality-level=Low -nosound
+sleep 15
+echo "──────── log do CARLA (procure a versão 0.9.15 e ausência de erro de Vulkan) ────────"
+docker logs carla-smoke 2>&1 | tail -30 || true
+docker stop carla-smoke >/dev/null 2>&1 || true
 
 cat <<EOF
 
-Teste (marco [5]):
-  • Terminal A:  bash scripts/run_carla.sh
-  • Terminal B:  python3 ${CARLA_ROOT}/PythonAPI/examples/generate_traffic.py -n 10
-Deve conectar em ${CARLA_HOST}:${CARLA_PORT}. Cole o log do CarlaUE4.sh se houver erro de Vulkan.
+Marco [5] OK se o log acima não mostrou erro de Vulkan/GPU.
+Uso normal:
+  • bash scripts/run_carla.sh          (ou: docker compose up carla)
+Teste de cliente (a própria imagem tem a PythonAPI compatível):
+  • bash scripts/run_carla.sh          # deixa o servidor rodando
+  • docker run --rm --net=host ${CARLA_IMAGE} \\
+      python3 PythonAPI/examples/generate_traffic.py -n 10 --host 127.0.0.1
 Depois: bash setup/04_bridge.sh
 EOF

@@ -44,21 +44,26 @@ isso a Fase 0 existe isolada. Avançamos passo a passo, validando cada um pelo l
 - **Custo (ordem de grandeza, on-demand):** g5.2xlarge ~US$1,2/h; g4dn.2xlarge ~US$0,75/h.
   **Desligue quando não estiver usando** (ver §8). Considere *Spot* para reduzir ~60–70%.
 
+> **Escolha desta fase: `g4dn.2xlarge` (T4, 16 GB) — opção econômica.** Único risco: a VRAM de 16 GB
+> é compartilhada por CARLA (render) + Autoware (perception). Mantenha o CARLA em `-quality-level=Low`
+> (já no `scripts/run_carla.sh`). Se ocorrer *out-of-memory* de GPU com os dois pesados juntos, suba
+> para `g5.2xlarge` (A10G, 24 GB) — só muda o tipo da instância; disco/AMI/scripts continuam iguais.
+
 ### 1.2 AMI
 
-Use a **Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)**, variante **64-bit (x86)** —
-já vem com **driver NVIDIA**, **Docker** e **NVIDIA Container Toolkit** prontos, que é exatamente o
-que o Autoware precisa. No console: *Launch instance → AMIs → busque* exatamente
-`Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)` (se não aparecer no *Quick Start*,
-clique em **Browse more AMIs**). A variante "…GPU PyTorch 2.x (Ubuntu 22.04)" também serve, mas é
-bem mais pesada.
+**AMI escolhida:** `Deep Learning Base AMI with Single CUDA (Ubuntu 24.04)` — **64-bit (x86)**,
+`ami-04be28fe3137c609b` (a região testada não oferecia a DLAMI **Ubuntu 22.04**; só 24.04). Ela já
+traz **driver NVIDIA + CUDA + Docker + NVIDIA Container Toolkit + conda** prontos. É a mais enxuta
+com GPU entre as disponíveis (a variante "…GPU PyTorch 2.x" é bem mais pesada).
 
-> **Não** use: **Amazon Linux 2023** (não tem ROS2 Humble), qualquer AMI **Arm64** (sem build de
-> CARLA/Autoware), nem imagens Ubuntu 20.04 (ROS2 Humble é 22.04).
+> **Por que 24.04 não é problema:** roda-se **tudo em Docker**. O Autoware roda em container
+> (Ubuntu 22.04 por dentro) e o **CARLA também** (imagem `carlasim/carla:0.9.15`, com Python
+> próprio) — o host só precisa de **driver + Docker**, então a versão do host (24.04) é irrelevante.
 >
-> Alternativa (Ubuntu 22.04 puro): buscar **"Ubuntu Server 22.04 LTS"** (Canonical), 64-bit x86, e
-> instalar driver + docker + toolkit à mão (§3.4). Mais passos e mais chance de erro; só se a AMI
-> acima não estiver disponível na região.
+> **Não** use: **Amazon Linux 2023** (sem ROS2 Humble), qualquer **Arm64** (sem build de
+> CARLA/Autoware), **Neuron** (é Inferentia/Trainium, não GPU NVIDIA), nem a "Ubuntu 22.04 with
+> SQL Server" (inchada). Se quiser 22.04 puro, dá para achar Canonical em *Browse more AMIs →
+> Community* + `bash setup/01_base_deps.sh` — mas com tudo em Docker não compensa o trabalho.
 
 ### 1.3 Storage
 
@@ -191,30 +196,29 @@ mapa de exemplo, **sem CARLA ainda**. Cole o log do `./docker/run.sh` e um print
 
 ---
 
-## 5. CARLA 0.9.15
+## 5. CARLA 0.9.15 (em Docker)
 
-Versão **fixada em 0.9.15** de propósito: é a suportada pela ponte do §6.
+Versão **fixada em 0.9.15** de propósito (é a suportada pela ponte do §6), rodada pela **imagem
+Docker oficial** — o servidor tem Python e libs próprios, então o host 24.04 não interfere.
 
 ```bash
-cd ~
-mkdir carla && cd carla
-# tarball do release 0.9.15 (GitHub releases do carla-simulator):
-wget https://github.com/carla-simulator/carla/releases/download/0.9.15/CARLA_0.9.15.tar.gz
-tar -xzf CARLA_0.9.15.tar.gz
+# baixa a imagem + smoke test (script do repo)
+bash setup/03_carla.sh      # = make carla
 
-# smoke test headless (sem abrir janela, render off-screen via Vulkan):
-./CarlaUE4.sh -RenderOffScreen -quality-level=Low -nosound &
-# em outro terminal, testar a API Python:
-python3 -m pip install carla==0.9.15
-python3 PythonAPI/examples/generate_traffic.py -n 10   # deve conectar em localhost:2000
+# uso normal (headless, GPU, mesma rede do host):
+bash scripts/run_carla.sh   # ou: docker compose up carla
+
+# testar a API Python usando a própria imagem (Python 3.7 embutido, compatível):
+docker run --rm --net=host carlasim/carla:0.9.15 \
+  python3 PythonAPI/examples/generate_traffic.py -n 10 --host 127.0.0.1
 ```
 
-**Marco de validação [5]:** CARLA sobe headless e um script de exemplo conecta na porta 2000.
-Cole o log do `CarlaUE4.sh` (procure por `4.26` / `LogCarla` / erros de Vulkan) e do
-`generate_traffic.py`.
+**Marco de validação [5]:** o container do CARLA sobe headless (log sem erro de Vulkan) e o
+exemplo conecta na porta 2000. Cole a saída de `bash setup/03_carla.sh`.
 
-> Se der erro de Vulkan/driver: normalmente é driver NVIDIA ou falta de `libvulkan1`
-> (`sudo apt-get install -y libvulkan1 vulkan-tools && vulkaninfo | head`). Cole o erro.
+> Erro de GPU/Vulkan no container quase sempre é o `--gpus all` / nvidia-container-toolkit — valide
+> antes com o §3 (`make gpu`). O cliente da API real (a ponte) roda **dentro do container do
+> Autoware** (Python 3.10) e fala com o CARLA por TCP em `localhost:2000`.
 
 ---
 

@@ -1,0 +1,21 @@
+# Orquestração Docker da Fase 0.
+#   - CARLA roda como serviço aqui (headless, GPU).
+#   - O Autoware roda no container próprio (bash scripts/run_autoware.sh), porque seu
+#     launch usa rocker/X (rviz via NICE DCV) — difícil de reproduzir fielmente aqui.
+#   - Ambos em network_mode: host → conversam por localhost:2000 e o TAP (Fase 2) vê o tráfego.
+#
+# Uso:  docker compose up carla        (ou: make carla-up)
+services:
+  carla:
+    image: carlasim/carla:0.9.15        # pinado (casa com a ponte autoware_carla_interface)
+    container_name: carla-server
+    network_mode: host
+    command: ["./CarlaUE4.sh", "-RenderOffScreen", "-quality-level=Low", "-nosound"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: "no"

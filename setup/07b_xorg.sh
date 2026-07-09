@@ -12,9 +12,11 @@ log "1/6 · Instalar Xorg + driver de entrada libinput + WM"
 sudo apt-get update
 sudo apt-get install -y xserver-xorg-core xserver-xorg-input-libinput xinit fluxbox x11-xserver-utils mesa-utils
 
-log "2/6 · Permitir Xorg headless (Xwrapper) e grupo input (uinput do Sunshine)"
+log "2/6 · Permitir Xorg headless (Xwrapper) e grupos input/video/render (Sunshine: uinput + NVENC)"
 echo -e "allowed_users=anybody\nneeds_root_rights=yes" | sudo tee /etc/X11/Xwrapper.config >/dev/null
-sudo usermod -aG input "$USER" || true
+sudo usermod -aG input,video,render "$USER" || true
+sudo udevadm control --reload && sudo udevadm trigger || true
+warn "Você foi adicionado a input,video,render — precisa RE-LOGAR o SSH para valer (antes do make sunshine)."
 
 log "3/6 · Gerar xorg.conf com o BusID da GPU"
 BUS="$(nvidia-smi --query-gpu=pci.bus_id --format=csv,noheader | head -1)"   # ex 00000000:00:06.0

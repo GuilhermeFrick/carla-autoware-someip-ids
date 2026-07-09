@@ -77,33 +77,49 @@ make carla      # baixa carlasim/carla:0.9.15 (~10 GB) + smoke test headless
 **OK quando:** o log mostra o banner do Unreal (`4.26.x ... Release-4.26`) **sem erro de Vulkan**
 (o aviso `xdg-user-dir: not found` é inofensivo).
 
-## 4. Instalar o Autoware (Docker) — marco [4]
+## 4. Baixar a imagem do Autoware (Docker) — marco [4] ✓
 ```bash
-make autoware   # = ./setup-dev-env.sh -y docker --no-nvidia (NÃO instala CUDA no host)
+make autoware   # docker pull ghcr.io/autowarefoundation/autoware:universe-cuda (imagem grande)
 ```
-> O `--no-nvidia` é essencial: sem ele, o Autoware tenta instalar `nvidia-open` e **conflita com o
-> driver já presente na VM** (`libnvidia-gl-... : Conflicts: libnvidia-gl`). A CUDA vem dentro do
-> container do Autoware.
+Usa a **imagem pré-buildada** — **não** precisa clonar o Autoware nem rodar `setup-dev-env`. Ela já
+traz `autoware_carla_interface` + `carla_sensor_kit`.
+**OK quando:** o script lista os pacotes carla no fim.
 
-**OK quando:** o `PLAY RECAP` termina com **`failed=0`**.
-
-## 5. Subir o container do Autoware e achar a interface CARLA — ⏳
+## 5. Baixar o mapa do Town01 — marco [5b]
 ```bash
-make run-autoware      # baixa a imagem do Autoware (grande) e entra no container
-# DENTRO do container:
-ros2 pkg list | grep -i carla
+make map        # Lanelet2 + PointCloud do Town01 → ~/autoware_data/maps/Town01
 ```
-> A VM é **headless**: se o `run-autoware` falhar por X11/DISPLAY, cole o erro — ajustamos para o
-> modo sem interface (a visualização do rviz2 vem depois, via NICE DCV ou port-forward de SSH).
-> O resultado do `ros2 pkg list | grep -i carla` diz se a ponte `autoware_carla_interface` já vem na
-> imagem ou se precisamos adicioná-la.
+**OK quando:** `pointcloud_map.pcd` e `lanelet2_map.osm` baixam com tamanho > 0.
 
-## 6. Ponte CARLA ⇄ Autoware — ⏳
+## 6. Rodar o piloto (CARLA + Autoware + interface) — ⏳
+Um único launch (`e2e_simulator.launch.xml simulator_type:=carla`) sobe o Autoware **e** a interface
+CARLA. Dois terminais:
 ```bash
-make bridge     # diagnóstico (rode do host; a checagem real é DENTRO do container, passo 5)
+# terminal 1 — servidor CARLA
+make run-carla
+
+# terminal 2 — Autoware + interface (instala o wheel do carla no container e lança)
+make run-autoware
 ```
-Depende do resultado do passo 5. Aqui entra o `ros2 launch` da interface + o `pip install carla==0.9.15`
-dentro do container. **A definir por log.**
+`run-autoware` instala o wheel do CARLA (Python 3.10) no container, conecta em `localhost:2000`, carrega
+o **Town01**, spawna o ego (`vehicle.toyota.prius`) e sobe perception→planning→control. Roda **headless**
+(rviz off).
+
+**Validar headless** (sem display) — noutro terminal:
+```bash
+docker ps                                   # pega o nome do container do autoware
+docker exec -it <container> bash
+ros2 topic list | grep -E "sensing|control|localization"
+ros2 topic hz /sensing/lidar/top/pointcloud # sensores fluindo do CARLA?
+```
+
+**Dirigir de verdade** (dar o goal pose no rviz) precisa de display → suba com
+`RVIZ=true make run-autoware` e acesse por **NICE DCV** (configuração do DCV documentada quando
+chegarmos nesse ponto). O objetivo da Fase 0 é o ego percorrer do ponto inicial ao goal.
+
+> Fontes da receita CARLA↔Autoware: [autoware_carla_interface (docs)](https://autowarefoundation.github.io/autoware_universe/main/simulator/autoware_carla_interface/)
+> · mapas [CARLA Autoware Contents](https://bitbucket.org/carla-simulator/autoware-contents/src/master/maps/)
+> · wheel [gezp/carla_ros](https://github.com/gezp/carla_ros/releases/tag/carla-0.9.15-ubuntu-22.04).
 
 ## Objetivo da Fase 0
 Ego **dirigindo sozinho** no CARLA via Autoware (perception → planning → control), **ainda sem
@@ -115,5 +131,6 @@ de cobrar o compute (paga só o disco). No **DigitalOcean**, desligado **continu
 + destroy.
 
 ## Status
-**Fase 0 em andamento.** Validados: GPU no Docker (marco 3) e CARLA headless (marco 5). Em iteração:
-subir o container do Autoware (marco 4/5) e a ponte (marco 6).
+**Fase 0 em andamento.** Validados: GPU no Docker (3), CARLA headless (5a), imagem do Autoware com a
+interface CARLA presente (4). Em iteração: mapa do Town01 (5b) e o launch integrado
+`e2e_simulator + simulator_type:=carla` (6) — ego dirigindo.

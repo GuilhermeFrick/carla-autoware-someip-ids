@@ -1,34 +1,19 @@
 #!/usr/bin/env bash
-# Marco [4] do runbook: instala o Autoware Universe (via Docker) + prepara pasta de mapa.
-# Uso:  bash setup/02_autoware.sh
+# Marco [4]: baixa a imagem PRÉ-BUILDADA do Autoware (universe-cuda) e confirma que a
+# interface CARLA vem nela. NÃO clona o Autoware nem roda setup-dev-env — o fluxo é
+# 100% Docker com a imagem pronta. Uso:  bash setup/02_autoware.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
-have git || die "git não encontrado (sudo apt-get install -y git)."
+have docker || die "docker não encontrado."
 
-log "1/3 · Clonar Autoware em ${AUTOWARE_ROOT}"
-if [[ -d "${AUTOWARE_ROOT}/.git" ]]; then
-  ok "já clonado"
+log "1/2 · Baixar imagem do Autoware: ${AUTOWARE_IMAGE} (grande, ~vários GB)"
+docker pull "${AUTOWARE_IMAGE}"
+
+log "2/2 · Conferir se a interface CARLA está na imagem"
+if docker run --rm "${AUTOWARE_IMAGE}" bash -lc 'ros2 pkg list | grep -i carla'; then
+  ok "Pacotes CARLA presentes (autoware_carla_interface + carla_sensor_kit)."
 else
-  git clone https://github.com/autowarefoundation/autoware.git "${AUTOWARE_ROOT}"
+  warn "Não achei pacotes carla na imagem — me avise (a tag pode ter mudado)."
 fi
 
-log "2/3 · setup-dev-env (docker): rocker + dependências de container"
-# --no-nvidia: NÃO instalar CUDA/driver no host. Rodamos tudo em Docker — a CUDA/cuDNN/TensorRT
-# já vêm na imagem do Autoware, e o host só precisa do driver + nvidia-container-toolkit (que a
-# VM GPU já traz). Sem essa flag, o Autoware tenta instalar 'nvidia-open' e conflita com o driver
-# pré-instalado da VM (libnvidia-gl-570 : Conflicts: libnvidia-gl).
-cd "${AUTOWARE_ROOT}"
-./setup-dev-env.sh -y docker --no-nvidia
-
-log "3/3 · Pasta de mapas"
-mkdir -p "${AUTOWARE_MAP}"
-ok "Criada ${AUTOWARE_MAP}"
-
-cat <<EOF
-
-Próximos passos manuais (ver docs/SETUP-AWS-FASE0.md §4):
-  • Baixe o mapa de exemplo (sample-map-planning) para ${AUTOWARE_MAP}
-  • Suba o container:   bash scripts/run_autoware.sh
-  • Smoke test no rviz2 (via NICE DCV): planning_simulator SEM CARLA
-Marco [4] validado quando o planning simulator abrir no rviz2. Depois: bash setup/03_carla.sh
-EOF
+log "Marco [4] OK. Próximo: bash setup/05_map.sh (mapa do Town01)"

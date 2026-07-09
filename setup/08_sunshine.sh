@@ -22,8 +22,18 @@ fi
 # evita o serviço automático tentar capturar :0 (inexistente num host headless)
 systemctl --user disable --now sunshine 2>/dev/null || true
 
+# Libera o IP Tailscale no CSRF do Sunshine (senão a Web UI em https://<ts-ip>:47990 dá CSRF error).
+TS_IP="$(tailscale ip -4 2>/dev/null | head -1)"
+CONF="${HOME}/.config/sunshine/sunshine.conf"
+mkdir -p "${HOME}/.config/sunshine"
+if [[ -n "${TS_IP}" ]] && ! grep -q "csrf_allowed_origins" "${CONF}" 2>/dev/null; then
+  echo "csrf_allowed_origins = https://${TS_IP}:47990" >> "${CONF}"
+  ok "csrf_allowed_origins liberado para https://${TS_IP}:47990"
+fi
+
 log "3/3 · Iniciar Sunshine capturando o display ${DISP}"
-pgrep -x sunshine >/dev/null || { nohup env DISPLAY="${DISP}" sunshine >/tmp/sunshine.log 2>&1 & sleep 3; }
+pkill -x sunshine 2>/dev/null; sleep 1   # reinicia p/ aplicar a config
+nohup env DISPLAY="${DISP}" sunshine >/tmp/sunshine.log 2>&1 & sleep 3
 
 TS_IP="$(tailscale ip -4 2>/dev/null | head -1)"
 cat <<EOF

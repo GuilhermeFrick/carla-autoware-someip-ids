@@ -11,7 +11,7 @@ BASE="https://bitbucket.org/carla-simulator/autoware-contents/raw/master/maps"
 log "Baixando mapa ${CARLA_MAP} para ${DEST}"
 mkdir -p "${DEST}"
 
-wget -O "${DEST}/pointcloud_map.pcd" "${BASE}/point_cloud/${CARLA_MAP}.pcd"
+wget -O "${DEST}/pointcloud_map.pcd" "${BASE}/point_cloud_maps/${CARLA_MAP}.pcd"
 wget -O "${DEST}/lanelet2_map.osm"   "${BASE}/vector_maps/lanelet2/${CARLA_MAP}.osm"
 printf 'projector_type: Local\n' > "${DEST}/map_projector_info.yaml"
 

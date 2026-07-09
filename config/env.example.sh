@@ -11,9 +11,12 @@ export CARLA_MAP="Town01"          # town carregado pela interface (precisa do m
 export CARLA_HOST="localhost"
 export CARLA_PORT="2000"
 
-# ── Autoware (Docker, imagem PRÉ-BUILDADA — não precisa clonar nem build) ──
+# ── Autoware (Docker, imagem PRÉ-BUILDADA — não precisa build) ────────────
 export AUTOWARE_IMAGE="ghcr.io/autowarefoundation/autoware:universe-cuda"
-export AUTOWARE_DATA="${HOME}/autoware_data"   # mapas; montado no container em /autoware_data
+# mapas + modelos de ML; montado no container em /root/autoware_data (data_path padrão)
+export AUTOWARE_DATA="${HOME}/autoware_data"
+# clone do autoware usado SÓ pela coleção ansible do download de artefatos (setup/06_artifacts.sh)
+export AUTOWARE_REPO="${HOME}/autoware"
 
 # Wheel do CARLA 0.9.15 p/ Python 3.10 (instalado dentro do container do Autoware).
 # Fonte: gezp/carla_ros (build oficial para Ubuntu 22.04 / Humble).

@@ -85,13 +85,22 @@ Usa a **imagem pré-buildada** — **não** precisa clonar o Autoware nem rodar 
 traz `autoware_carla_interface` + `carla_sensor_kit`.
 **OK quando:** o script lista os pacotes carla no fim.
 
-## 5. Baixar o mapa do Town01 — marco [5b]
+## 5. Baixar o mapa do Town01 — marco [5b] ✓
 ```bash
 make map        # Lanelet2 + PointCloud do Town01 → ~/autoware_data/maps/Town01
 ```
-**OK quando:** `pointcloud_map.pcd` e `lanelet2_map.osm` baixam com tamanho > 0.
+**OK quando:** `pointcloud_map.pcd` (~190 MB) e `lanelet2_map.osm` baixam com tamanho > 0.
+Os `.pcd` são Git LFS → o script baixa pela API do bitbucket (o endpoint `raw` dá 404).
 
-## 6. Rodar o piloto (CARLA + Autoware + interface) — ⏳
+## 6. Baixar os artefatos de ML do Autoware — marco [5c] ✓ (OBRIGATÓRIO)
+```bash
+make artifacts  # clona autoware (p/ ansible) + download_artifacts → ~/autoware_data
+```
+Baixa os modelos de percepção (lidar_centerpoint, tensorrt_yolox, etc.). **Sem eles o launch aborta**
+com `No such file: .../lidar_centerpoint/centerpoint_tiny_ml_package.param.yaml`. São vários GB.
+**OK quando:** `~/autoware_data/lidar_centerpoint/` existe (com o `.param.yaml`).
+
+## 7. Rodar o piloto (CARLA + Autoware + interface) — marco [7] ✓ (pipeline validado headless)
 Um único launch (`e2e_simulator.launch.xml simulator_type:=carla`) sobe o Autoware **e** a interface
 CARLA. Dois terminais:
 ```bash
@@ -101,25 +110,33 @@ make run-carla
 # terminal 2 — Autoware + interface (instala o wheel do carla no container e lança)
 make run-autoware
 ```
-`run-autoware` instala o wheel do CARLA (Python 3.10) no container, conecta em `localhost:2000`, carrega
-o **Town01**, spawna o ego (`vehicle.toyota.prius`) e sobe perception→planning→control. Roda **headless**
-(rviz off).
+`run-autoware` monta `~/autoware_data` em **`/root/autoware_data`** (data_path padrão, onde o Autoware
+acha mapa **e** modelos), instala o wheel do CARLA (Python 3.10), conecta em `localhost:2000`, carrega o
+**Town01**, spawna o ego e sobe perception→localization→planning→control. Headless por padrão; usa
+`use_light_weight_sensor_mapping=true` (1 câmera). **Não interrompa** — a 1ª carga do Town01 é lenta.
 
-**Validar headless** (sem display) — noutro terminal:
+**Validar headless** (noutro terminal) — pipeline confirmado quando:
 ```bash
-docker ps                                   # pega o nome do container do autoware
-docker exec -it <container> bash
-ros2 topic list | grep -E "sensing|control|localization"
-ros2 topic hz /sensing/lidar/top/pointcloud # sensores fluindo do CARLA?
+docker ps    # nome do container do autoware
+C=<NAME>
+docker exec -it $C bash -lc 'source /opt/autoware/setup.bash
+  ros2 node list | grep -i carla                                  # /autoware_carla_interface vivo
+  ros2 topic hz /sensing/lidar/top/pointcloud_before_sync         # lidar do CARLA chegando (~5-11 Hz)
+  ros2 topic echo /localization/kinematic_state --once'           # ego localizado (pose real)
 ```
+Checagem direta do CARLA: `python3 -c "import carla; w=carla.Client('localhost',2000); ..."` deve
+mostrar `map: Carla/Maps/Town01` e atores > 0.
 
-**Dirigir de verdade** (dar o goal pose no rviz) precisa de display → suba com
-`RVIZ=true make run-autoware` e acesse por **NICE DCV** (configuração do DCV documentada quando
-chegarmos nesse ponto). O objetivo da Fase 0 é o ego percorrer do ponto inicial ao goal.
+## 8. Dirigir e ver (o vídeo) — ⏳ próximo
+Dar o *goal pose* no **rviz** exige display. Como aqui **não é AWS** (NICE DCV precisa de licença fora
+da AWS), o caminho é **VNC + VirtualGL (EGL)** para rviz acelerado por GPU: sobe-se um display virtual
+no host, roda o container com `-e DISPLAY` + `-v /tmp/.X11-unix` e `RVIZ=true make run-autoware`, e
+conecta-se por VNC (túnel SSH). Aí: *2D Pose Estimate* → *2D Goal Pose* → ego dirige = entregável.
 
 > Fontes da receita CARLA↔Autoware: [autoware_carla_interface (docs)](https://autowarefoundation.github.io/autoware_universe/main/simulator/autoware_carla_interface/)
 > · mapas [CARLA Autoware Contents](https://bitbucket.org/carla-simulator/autoware-contents/src/master/maps/)
-> · wheel [gezp/carla_ros](https://github.com/gezp/carla_ros/releases/tag/carla-0.9.15-ubuntu-22.04).
+> · wheel [gezp/carla_ros](https://github.com/gezp/carla_ros/releases/tag/carla-0.9.15-ubuntu-22.04)
+> · artefatos: playbook `autoware.dev_env.download_artifacts`.
 
 ## Objetivo da Fase 0
 Ego **dirigindo sozinho** no CARLA via Autoware (perception → planning → control), **ainda sem
@@ -131,6 +148,7 @@ de cobrar o compute (paga só o disco). No **DigitalOcean**, desligado **continu
 + destroy.
 
 ## Status
-**Fase 0 em andamento.** Validados: GPU no Docker (3), CARLA headless (5a), imagem do Autoware com a
-interface CARLA presente (4). Em iteração: mapa do Town01 (5b) e o launch integrado
-`e2e_simulator + simulator_type:=carla` (6) — ego dirigindo.
+**Fase 0 — pipeline validado headless** (numa RTX A6000): CARLA (Town01, ego + tráfego) → sensores →
+Autoware → **ego localizado** (`kinematic_state` com pose real), com a `autoware_carla_interface` viva.
+Marcos 3, 4, 5a, 5b, 5c, 7 ✓. Falta o marco 8: display remoto (VNC+VirtualGL) para dar o goal e gravar
+o ego dirigindo.

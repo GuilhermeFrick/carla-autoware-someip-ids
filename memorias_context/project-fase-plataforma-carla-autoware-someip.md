@@ -46,9 +46,26 @@ sensores CARLA). Loop fechado dá causalidade ataque→detecção→efeito.
 
 **Plano (fases):** 0 CARLA dirigido pelo Autoware (sem SOME/IP) · 1 ponte DDS⇄SOME/IP (loop fechado
 sobre SOME/IP) · 2 TAP + injeção rotulada · 3 duplo medidor (tabela ataque×detectado×consequência)
-· 4 empacotar como plataforma. **Fase 0 em andamento (2026-07-08):** provisionar a instância AWS e
-subir o ego dirigindo. Passo de maior incerteza = ponte `autoware_carla_interface` (nome/launch
-variam com a tag do Autoware; `setup/04_bridge.sh` coleta diagnóstico p/ iterar por log).
+· 4 empacotar como plataforma.
+
+**FASE 0 — PIPELINE VALIDADO HEADLESS (2026-07-09).** Rodou numa VM GPU **RTX A6000** (não-AWS: a cota
+G da AWS travou; DigitalOcean sem estoque; TensorDock/Paperspace com fricção → usou-se uma VM Hyperstack-
+like Ubuntu 22.04 "with Docker"). Descobertas-chave (tudo já no repo, `setup/` + `scripts/` + README):
+- **Autoware NÃO precisa de setup-dev-env nem build:** usa-se a imagem pré-buildada
+  `ghcr.io/autowarefoundation/autoware:universe-cuda`, que **já traz** `autoware_carla_interface` +
+  `carla_sensor_kit`. (O `--no-nvidia` do setup-dev-env virou irrelevante.)
+- **Integração = 1 launch:** `ros2 launch autoware_launch e2e_simulator.launch.xml simulator_type:=carla
+  map_path:=/root/autoware_data/maps/Town01 vehicle_model:=sample_vehicle sensor_model:=carla_sensor_kit`
+  (roda DENTRO do container). Sobe Autoware + a interface juntos.
+- **3 dependências que travam se faltarem:** (1) **mapa Town01** (Lanelet2+PCD, Git LFS → baixar pela
+  API do bitbucket, não `raw`); (2) **wheel do CARLA p/ py3.10** (`gezp/carla_ros`, `pip install` no
+  container); (3) **artefatos de ML** (`ansible-playbook autoware.dev_env.download_artifacts
+  -e data_dir=~/autoware_data`) — sem eles o launch aborta no `lidar_centerpoint`.
+- **Mount:** `-v ~/autoware_data:/root/autoware_data` (data_path padrão = mapa + modelos no mesmo lugar).
+- **Resultado:** CARLA (Town01, ego + 183 atores) → sensores (lidar `.../pointcloud_before_sync` ~5 Hz,
+  câmeras, gnss, imu) → Autoware → **ego localizado** (`/localization/kinematic_state` com pose real).
+- **Falta o marco 8:** display remoto p/ rviz (VNC+VirtualGL/EGL, pois NICE DCV exige AWS) → dar goal
+  pose → gravar o ego dirigindo (vídeo-entregável).
 
 Reaproveita: IDS content_ext, injetor YAML do `someip-traffic-simulator`, sensores/attacks do
 `carla-someip`. Ver [[reference-repositorios-mapa]] e [[project-contribuicoes-e-ferramentas]].

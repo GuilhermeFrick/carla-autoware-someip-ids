@@ -4,6 +4,7 @@
 # Pré-requisitos:
 #   • CARLA já rodando   → bash scripts/run_carla.sh   (outro terminal)
 #   • mapa baixado       → bash setup/05_map.sh
+#   • artefatos de ML    → bash setup/06_artifacts.sh  (senão o launch aborta)
 # Variáveis:
 #   RVIZ=true    → abre o rviz (precisa de display/NICE DCV). Padrão: false (headless).
 #   LIGHT=true   → sensor mapping leve (1 câmera em vez de 6). Bom para reduzir carga/instabilidade.
@@ -20,12 +21,13 @@ LIGHT="${LIGHT:-false}"
 TTY=""; [ -t 1 ] && TTY="-t"   # -t só quando há terminal (permite piping para tee)
 
 log "Autoware + interface CARLA (mapa ${CARLA_MAP}, rviz=${RVIZ}, light=${LIGHT}). CARLA precisa já estar rodando."
+# Monta em /root/autoware_data = data_path padrão do Autoware (onde ele procura mapa E modelos de ML).
 exec docker run --rm -i ${TTY} --gpus all --net=host \
-  -v "${AUTOWARE_DATA}:/autoware_data" \
+  -v "${AUTOWARE_DATA}:/root/autoware_data" \
   "${AUTOWARE_IMAGE}" bash -lc "
     pip install --no-input '${CARLA_WHEEL_URL}' &&
     ros2 launch autoware_launch e2e_simulator.launch.xml \
-      map_path:=/autoware_data/maps/${CARLA_MAP} \
+      map_path:=/root/autoware_data/maps/${CARLA_MAP} \
       vehicle_model:=sample_vehicle \
       sensor_model:=carla_sensor_kit \
       simulator_type:=carla \

@@ -6,7 +6,9 @@
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
 DEST="${AUTOWARE_DATA}/maps/${CARLA_MAP}"
-BASE="https://bitbucket.org/carla-simulator/autoware-contents/raw/master/maps"
+# Os .pcd são Git LFS → o endpoint 'raw' do bitbucket dá 404. O endpoint da API 'src'
+# redireciona para o arquivo real (LFS/S3) e o wget segue o redirect.
+BASE="https://api.bitbucket.org/2.0/repositories/carla-simulator/autoware-contents/src/master/maps"
 
 log "Baixando mapa ${CARLA_MAP} para ${DEST}"
 mkdir -p "${DEST}"

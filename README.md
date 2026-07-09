@@ -127,50 +127,76 @@ docker exec -it $C bash -lc 'source /opt/autoware/setup.bash
 Checagem direta do CARLA: `python3 -c "import carla; w=carla.Client('localhost',2000); ..."` deve
 mostrar `map: Carla/Maps/Town01` e atores > 0.
 
-## 8. Parte gráfica — ver e dirigir no rviz — ⏳
-Dar o *goal pose* exige display. Como **não é AWS** (NICE DCV precisa de licença fora da AWS), usa-se
-**desktop virtual (Xvfb) + VNC**, acessado por túnel SSH. Começa em **software GL** (simples); migra-se
-para VirtualGL/GPU se ficar lento.
+## 8. Parte gráfica — desktop remoto USÁVEL (X NVIDIA + Sunshine/Moonlight) — marco [8] ✓
+Para **ver e dirigir** (dar goal, engatar) precisa de display. A arquitetura que funcionou de forma
+**interativa e fluida** numa VM headless (não-AWS, sem NICE DCV):
 
-```bash
-# na VM: sobe o desktop virtual + VNC (idempotente)
-make desktop                    # Xvfb :99 + fluxbox + x11vnc em localhost:5900
-
-# no SEU PC: túnel SSH + cliente VNC (TigerVNC/RealVNC) em localhost:5900
-ssh -i ~/.ssh/SUA_CHAVE -L 5900:localhost:5900 <user>@<IP_DA_VM>
-
-# na VM, com o CARLA rodando (make run-carla), sobe o Autoware COM rviz:
-RVIZ=true make run-autoware     # encaminha o DISPLAY :99 para o container
 ```
-No rviz (pela janela VNC): **Initialize with GNSS** (localiza o ego) → **2D Goal Pose** → engatar
-**Autoware Control / Auto** → o ego dirige. Grave a tela = vídeo-entregável da Fase 0.
-
-**Se o rviz em software GL ficar lento** (a nuvem de pontos do Town01 trava): use o rviz **na GPU**
-via VirtualGL. Deixa o Autoware **headless** e sobe o rviz num container com VirtualGL/EGL:
-```bash
-# term2: Autoware headless (SEM RVIZ)
-make run-autoware
-# term3: rviz na GPU (builda a imagem VirtualGL na 1ª vez)
-make rviz
+  Xorg NVIDIA real (:99)  →  rviz DENTRO do container do Autoware (GPU nativa)
+                          →  Sunshine (encode HW) → Tailscale → Moonlight (seu PC)
 ```
-Renderiza na A6000 e joga os frames no VNC → fluido.
 
-> Fontes da receita CARLA↔Autoware: [autoware_carla_interface (docs)](https://autowarefoundation.github.io/autoware_universe/main/simulator/autoware_carla_interface/)
+Três decisões-chave (aprendidas na marra — não troque sem motivo):
+- **Xorg NVIDIA real, não Xvfb.** O Xvfb (`make desktop`) mostra vídeo mas **não processa a entrada
+  virtual** que o Sunshine injeta via `/dev/uinput` → **mouse travado**. Um Xorg real lê o uinput
+  (libinput) **e** dá GPU nativa ao rviz (dispensa VirtualGL).
+- **rviz DENTRO do container do Autoware** (`RVIZ=true make run-autoware`), não num container separado.
+  Separado, os serviços/estados "latched" da **AD API não cruzam bem entre containers** → o painel fica
+  todo **"Unknown"** e o *Initialize/Goal* não respondem. No mesmo grafo ROS, tudo popula.
+- **Sunshine: `capture=x11` + `encoder=vulkan` + Moonlight em H.264.** Com Xorg real o Sunshine tentaria
+  **KMS** e capturaria o scanout do **monitor físico inexistente** → tela preta (por isso `capture=x11`).
+  O **NVENC falha** neste driver (`cudaErrorInsufficientDriver`) → usa-se **Vulkan** (encode HW na A6000).
+  O **HEVC via Vulkan segfaulta** → force **H.264** no Moonlight.
+
+### Sequência (bring-up do ambiente gráfico)
+```bash
+# [1] X NVIDIA real no :99 (instala Xorg, entra nos grupos input/video/render, gera xorg.conf)
+make xorg
+DISPLAY=:99 glxinfo | grep -i "OpenGL renderer"     # esperado: NVIDIA RTX A6000
+
+# [2] RE-LOGAR o SSH  (grupos input/video/render só valem em sessão nova — passo obrigatório!)
+exit
+ssh -i ~/.ssh/SUA_CHAVE <user>@<IP_DA_VM>
+cd ~/carla-autoware-someip-ids
+
+# [3] Streaming: Tailscale + Sunshine  (instale o Tailscale TAMBÉM no seu PC, mesma conta)
+make sunshine                    # imprime o IP Tailscale da VM (100.x.y.z)
+#   PC: https://<ts-ip>:47990  → cria login do Sunshine
+#   PC: Moonlight → Add Host <ts-ip> → PIN → cola na Web UI (aba PIN)
+#   PC: Moonlight Settings → Codec H.264 · V-Sync OFF · HDR OFF · bitrate ~10 Mbps
+
+# [4] Simulação + autonomia + rviz (na GPU, no MESMO container)
+make run-carla                   # terminal 1
+RVIZ=true make run-autoware      # terminal 2  → o rviz abre no :99 e aparece no Moonlight
+```
+
+No rviz (pelo Moonlight): **Initialize with GNSS** (Localization: Uninitialized→Initializing→Initialized)
+→ **2D Goal Pose** (clica+arrasta numa via à frente) → **Autoware Control / Auto** (+ *Accept Start*) →
+o ego dirige. Para gravar o vídeo liso, à parte: `make record` (ffmpeg captura o `:99` → MP4).
+
+**Fallback simples (VNC, sem Moonlight/Tailscale):** para um olhar rápido, `make desktop` (Xvfb + x11vnc)
++ túnel SSH `-L 5901:localhost:5900` + cliente VNC. Funciona para poucos cliques, mas é **laggy** e o
+mouse do Sunshine não funciona nele — por isso o caminho principal é o Xorg+Sunshine acima.
+
+> Fontes: [autoware_carla_interface](https://autowarefoundation.github.io/autoware_universe/main/simulator/autoware_carla_interface/)
 > · mapas [CARLA Autoware Contents](https://bitbucket.org/carla-simulator/autoware-contents/src/master/maps/)
 > · wheel [gezp/carla_ros](https://github.com/gezp/carla_ros/releases/tag/carla-0.9.15-ubuntu-22.04)
-> · artefatos: playbook `autoware.dev_env.download_artifacts`.
+> · artefatos: playbook `autoware.dev_env.download_artifacts` · streaming [Sunshine](https://github.com/LizardByte/Sunshine)+[Moonlight](https://moonlight-stream.org)+[Tailscale](https://tailscale.com).
 
 ## Objetivo da Fase 0
 Ego **dirigindo sozinho** no CARLA via Autoware (perception → planning → control), **ainda sem
 SOME/IP**. A ponte SOME/IP real é a Fase 1.
 
 ## Pausar a VM (custo)
-Pare a VM quando não estiver usando. Em AWS/Azure/GCP/TensorDock/Hyperstack: **stop/deallocate** para
-de cobrar o compute (paga só o disco). No **DigitalOcean**, desligado **continua cobrando** → snapshot
-+ destroy.
+Pare a VM quando não estiver usando. Na **Hyperstack**: **Hibernate** (preserva o disco/ambiente e para
+a cobrança de compute) — não use só `poweroff` (pode continuar alocada). Em AWS/Azure/GCP/TensorDock:
+**stop/deallocate**. No **DigitalOcean**, desligado **continua cobrando** → snapshot + destroy.
 
 ## Status
-**Fase 0 — pipeline validado headless** (numa RTX A6000): CARLA (Town01, ego + tráfego) → sensores →
-Autoware → **ego localizado** (`kinematic_state` com pose real), com a `autoware_carla_interface` viva.
-Marcos 3, 4, 5a, 5b, 5c, 7 ✓. Falta o marco 8: display remoto (VNC+VirtualGL) para dar o goal e gravar
-o ego dirigindo.
+**Fase 0 — pipeline validado + ambiente gráfico usável** (numa RTX A6000 na Hyperstack):
+- **Headless** (marcos 3,4,5a,5b,5c,7 ✓): CARLA (Town01, ego + tráfego) → sensores → Autoware →
+  **ego localizado** (`kinematic_state`), com a `autoware_carla_interface` viva.
+- **Gráfico** (marco 8 ✓): Xorg NVIDIA real + rviz na GPU no container + Sunshine/Moonlight/Tailscale;
+  o painel do rviz popula (MRM Operating, ControlMode AUTONOMOUS, Localization Initializing→Initialized).
+- **Pendente:** fechar o *drive* de ponta a ponta (goal → `Routing` ativo → ego em movimento) e gravar
+  o vídeo; investigar warnings `operation_mode_availability is timeout` e `PointCloud is_dense=false`.

@@ -50,10 +50,10 @@ EOF
 ok "BusID=${BUSID} · Virtual ${RES}"
 
 log "4/6 · Parar Xvfb/x11vnc/fluxbox antigos"
-pkill -x x11vnc 2>/dev/null; pkill -x fluxbox 2>/dev/null; pkill -x Xvfb 2>/dev/null; sleep 1
+pkill -x x11vnc 2>/dev/null || true; pkill -x fluxbox 2>/dev/null || true; pkill -x Xvfb 2>/dev/null || true; sleep 1
 
 log "5/6 · Subir Xorg ${DISP}"
-sudo pkill -x Xorg 2>/dev/null; sleep 1
+sudo pkill -x Xorg 2>/dev/null || true; sleep 1
 sudo nohup X "${DISP}" -config /etc/X11/xorg.conf -nolisten tcp vt1 >/tmp/xorg.stdout 2>&1 &
 sleep 4
 if ! pgrep -x Xorg >/dev/null; then

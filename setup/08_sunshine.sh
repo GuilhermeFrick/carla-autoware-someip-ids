@@ -32,7 +32,7 @@ if [[ -n "${TS_IP}" ]] && ! grep -q "csrf_allowed_origins" "${CONF}" 2>/dev/null
 fi
 
 log "3/3 · Iniciar Sunshine capturando o display ${DISP}"
-pkill -x sunshine 2>/dev/null; sleep 1   # reinicia p/ aplicar a config
+pkill -x sunshine 2>/dev/null || true; sleep 1   # reinicia p/ aplicar a config
 nohup env DISPLAY="${DISP}" sunshine >/tmp/sunshine.log 2>&1 & sleep 3
 
 TS_IP="$(tailscale ip -4 2>/dev/null | head -1)"

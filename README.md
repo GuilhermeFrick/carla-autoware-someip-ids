@@ -142,8 +142,18 @@ ssh -i ~/.ssh/SUA_CHAVE -L 5900:localhost:5900 <user>@<IP_DA_VM>
 # na VM, com o CARLA rodando (make run-carla), sobe o Autoware COM rviz:
 RVIZ=true make run-autoware     # encaminha o DISPLAY :99 para o container
 ```
-No rviz (pela janela VNC): **2D Pose Estimate** (se não auto-inicializar) → **2D Goal Pose** → o ego
-planeja a rota e dirige. Grave a tela = vídeo-entregável da Fase 0.
+No rviz (pela janela VNC): **Initialize with GNSS** (localiza o ego) → **2D Goal Pose** → engatar
+**Autoware Control / Auto** → o ego dirige. Grave a tela = vídeo-entregável da Fase 0.
+
+**Se o rviz em software GL ficar lento** (a nuvem de pontos do Town01 trava): use o rviz **na GPU**
+via VirtualGL. Deixa o Autoware **headless** e sobe o rviz num container com VirtualGL/EGL:
+```bash
+# term2: Autoware headless (SEM RVIZ)
+make run-autoware
+# term3: rviz na GPU (builda a imagem VirtualGL na 1ª vez)
+make rviz
+```
+Renderiza na A6000 e joga os frames no VNC → fluido.
 
 > Fontes da receita CARLA↔Autoware: [autoware_carla_interface (docs)](https://autowarefoundation.github.io/autoware_universe/main/simulator/autoware_carla_interface/)
 > · mapas [CARLA Autoware Contents](https://bitbucket.org/carla-simulator/autoware-contents/src/master/maps/)

@@ -1,6 +1,6 @@
 # Atalhos para o setup da Fase 0 (tudo em Docker). Rode no host da VM GPU.
 # Detalhe de cada passo no README (seção "Setup do ambiente").
-.PHONY: help base gpu carla autoware map artifacts desktop xorg sunshine run-carla run-autoware rviz fase0 fase0-run
+.PHONY: help base gpu carla autoware map artifacts desktop xorg sunshine run-carla run-autoware rviz record fase0 fase0-run
 
 help:
 	@echo "Ordem da Fase 0:"
@@ -33,6 +33,7 @@ sunshine:     ; bash setup/08_sunshine.sh
 run-carla:    ; bash scripts/run_carla.sh
 run-autoware: ; bash scripts/run_autoware.sh
 rviz:         ; bash scripts/run_rviz.sh
+record:       ; bash scripts/record.sh
 fase0-run:    ; bash scripts/tmux_fase0.sh
 
 fase0: gpu carla autoware map artifacts

@@ -4,8 +4,11 @@
 # Pré-requisitos:
 #   • CARLA já rodando   → bash scripts/run_carla.sh   (outro terminal)
 #   • mapa baixado       → bash setup/05_map.sh
-# Headless por padrão (rviz off). Com display (NICE DCV) use: RVIZ=true bash scripts/run_autoware.sh
+# Variáveis:
+#   RVIZ=true    → abre o rviz (precisa de display/NICE DCV). Padrão: false (headless).
+#   LIGHT=true   → sensor mapping leve (1 câmera em vez de 6). Bom para reduzir carga/instabilidade.
 # Uso:  bash scripts/run_autoware.sh
+#   (para salvar log:  bash scripts/run_autoware.sh 2>&1 | tee ~/aw.log)
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../setup" && pwd)/lib.sh"
 
 have docker || die "docker não encontrado."
@@ -13,9 +16,11 @@ have docker || die "docker não encontrado."
   || die "Mapa ${CARLA_MAP} não encontrado em ${AUTOWARE_DATA}/maps/${CARLA_MAP}. Rode: bash setup/05_map.sh"
 
 RVIZ="${RVIZ:-false}"
+LIGHT="${LIGHT:-false}"
+TTY=""; [ -t 1 ] && TTY="-t"   # -t só quando há terminal (permite piping para tee)
 
-log "Autoware + interface CARLA (mapa ${CARLA_MAP}, rviz=${RVIZ}). CARLA precisa já estar rodando."
-exec docker run --rm -it --gpus all --net=host \
+log "Autoware + interface CARLA (mapa ${CARLA_MAP}, rviz=${RVIZ}, light=${LIGHT}). CARLA precisa já estar rodando."
+exec docker run --rm -i ${TTY} --gpus all --net=host \
   -v "${AUTOWARE_DATA}:/autoware_data" \
   "${AUTOWARE_IMAGE}" bash -lc "
     pip install --no-input '${CARLA_WHEEL_URL}' &&
@@ -24,5 +29,6 @@ exec docker run --rm -it --gpus all --net=host \
       vehicle_model:=sample_vehicle \
       sensor_model:=carla_sensor_kit \
       simulator_type:=carla \
-      rviz:=${RVIZ}
+      rviz:=${RVIZ} \
+      use_light_weight_sensor_mapping:=${LIGHT}
   "

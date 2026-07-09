@@ -20,11 +20,13 @@ RVIZ="${RVIZ:-false}"
 LIGHT="${LIGHT:-false}"
 TTY=""; [ -t 1 ] && TTY="-t"   # -t só quando há terminal (permite piping para tee)
 
-# Com RVIZ=true, encaminha o display do desktop virtual (setup/07_desktop.sh) para o container.
-# LIBGL_ALWAYS_SOFTWARE=1 = GL por software (llvmpipe) — simples; troque por VirtualGL se ficar lento.
+# Com RVIZ=true, encaminha o display para o container. Com um Xorg NVIDIA real no :99
+# (setup/07b_xorg.sh), o rviz renderiza direto na GPU — basta expor as libs gráficas (caps=all),
+# sem VirtualGL nem software GL. Assim o rviz fica NO MESMO container/grafo ROS da autonomia
+# (a AD API funciona: estados populam, Initialize with GNSS / goal respondem).
 XOPTS=""
 if [ "${RVIZ}" = "true" ]; then
-  XOPTS="-e DISPLAY=${VNC_DISPLAY:-:99} -e LIBGL_ALWAYS_SOFTWARE=1 -e QT_X11_NO_MITSHM=1 -v /tmp/.X11-unix:/tmp/.X11-unix"
+  XOPTS="-e DISPLAY=${VNC_DISPLAY:-:99} -e NVIDIA_DRIVER_CAPABILITIES=all -e NVIDIA_VISIBLE_DEVICES=all -e QT_X11_NO_MITSHM=1 -v /tmp/.X11-unix:/tmp/.X11-unix"
 fi
 
 log "Autoware + interface CARLA (mapa ${CARLA_MAP}, rviz=${RVIZ}, light=${LIGHT}). CARLA precisa já estar rodando."

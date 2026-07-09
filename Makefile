@@ -1,6 +1,6 @@
 # Atalhos para o setup da Fase 0 (tudo em Docker). Rode no host da VM GPU.
 # Detalhe de cada passo no README (seção "Setup do ambiente").
-.PHONY: help base gpu carla autoware map artifacts desktop run-carla run-autoware rviz fase0 fase0-run
+.PHONY: help base gpu carla autoware map artifacts desktop sunshine run-carla run-autoware rviz fase0 fase0-run
 
 help:
 	@echo "Ordem da Fase 0:"
@@ -17,6 +17,7 @@ help:
 	@echo "  make desktop      # [8a] desktop virtual + VNC (localhost:5900 via túnel SSH)"
 	@echo "  make rviz         # [8b] rviz na GPU (VirtualGL/EGL) — use se o software GL estiver lento"
 	@echo "                    #      (Autoware headless: make run-autoware SEM RVIZ)"
+	@echo "  make sunshine     # [8c] streaming NVENC (Sunshine+Moonlight+Tailscale) — muito mais fluido que VNC"
 	@echo "  base:  make base  # (fallback) driver+docker+toolkit em host sem eles"
 
 base:         ; bash setup/01_base_deps.sh
@@ -26,6 +27,7 @@ autoware:     ; bash setup/02_autoware.sh
 map:          ; bash setup/05_map.sh
 artifacts:    ; bash setup/06_artifacts.sh
 desktop:      ; bash setup/07_desktop.sh
+sunshine:     ; bash setup/08_sunshine.sh
 
 run-carla:    ; bash scripts/run_carla.sh
 run-autoware: ; bash scripts/run_autoware.sh

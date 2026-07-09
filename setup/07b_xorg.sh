@@ -22,6 +22,11 @@ bus="$(echo "$BUS" | awk -F: '{print $2}')"; df="$(echo "$BUS" | awk -F: '{print
 dev="${df%%.*}"; fun="${df##*.}"
 BUSID="PCI:$((16#$bus)):$((16#$dev)):$((16#$fun))"
 sudo tee /etc/X11/xorg.conf >/dev/null <<EOF
+Section "Files"
+    # o driver da DLAMI põe nvidia_drv.so aqui (fora do caminho padrão do Xorg)
+    ModulePath "/usr/lib/x86_64-linux-gnu/nvidia/xorg"
+    ModulePath "/usr/lib/xorg/modules"
+EndSection
 Section "ServerLayout"
     Identifier "layout"
     Screen 0 "screen0"
@@ -49,10 +54,12 @@ pkill -x x11vnc 2>/dev/null; pkill -x fluxbox 2>/dev/null; pkill -x Xvfb 2>/dev/
 
 log "5/6 · Subir Xorg ${DISP}"
 sudo pkill -x Xorg 2>/dev/null; sleep 1
-sudo nohup X "${DISP}" -config /etc/X11/xorg.conf -nolisten tcp vt1 >/tmp/xorg.log 2>&1 &
+sudo nohup X "${DISP}" -config /etc/X11/xorg.conf -nolisten tcp vt1 >/tmp/xorg.stdout 2>&1 &
 sleep 4
 if ! pgrep -x Xorg >/dev/null; then
-  die "Xorg não subiu. Cole /tmp/xorg.log (procure 'no screens found', 'BusID', 'vt')."
+  warn "Xorg não subiu. Log real:"
+  sudo tail -n 40 "/var/log/Xorg.99.log" 2>/dev/null || tail -n 40 /tmp/xorg.stdout
+  die "Cole o log acima (procure 'no screens found', 'Failed to load', 'vt')."
 fi
 
 log "6/6 · Permissões + WM"

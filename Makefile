@@ -1,6 +1,6 @@
 # Atalhos para o setup da Fase 0 (tudo em Docker). Rode no host da VM GPU.
 # Detalhe de cada passo no README (seção "Setup do ambiente").
-.PHONY: help base gpu carla autoware map artifacts run-carla run-autoware fase0 fase0-run
+.PHONY: help base gpu carla autoware map artifacts desktop run-carla run-autoware fase0 fase0-run
 
 help:
 	@echo "Ordem da Fase 0:"
@@ -13,6 +13,9 @@ help:
 	@echo "  make run-carla    # sobe o CARLA (terminal 1)"
 	@echo "  make run-autoware # sobe Autoware + interface CARLA (terminal 2)"
 	@echo "  make fase0-run    # os dois acima em tmux"
+	@echo "  ---- parte gráfica (ver/dirigir no rviz) ----"
+	@echo "  make desktop      # [8a] desktop virtual + VNC (localhost:5900 via túnel SSH)"
+	@echo "                    #      depois: RVIZ=true make run-autoware"
 	@echo "  base:  make base  # (fallback) driver+docker+toolkit em host sem eles"
 
 base:         ; bash setup/01_base_deps.sh
@@ -21,6 +24,7 @@ carla:        ; bash setup/03_carla.sh
 autoware:     ; bash setup/02_autoware.sh
 map:          ; bash setup/05_map.sh
 artifacts:    ; bash setup/06_artifacts.sh
+desktop:      ; bash setup/07_desktop.sh
 
 run-carla:    ; bash scripts/run_carla.sh
 run-autoware: ; bash scripts/run_autoware.sh

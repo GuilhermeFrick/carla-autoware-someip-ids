@@ -21,3 +21,7 @@ export AUTOWARE_REPO="${HOME}/autoware"
 # Wheel do CARLA 0.9.15 p/ Python 3.10 (instalado dentro do container do Autoware).
 # Fonte: gezp/carla_ros (build oficial para Ubuntu 22.04 / Humble).
 export CARLA_WHEEL_URL="https://github.com/gezp/carla_ros/releases/download/carla-0.9.15-ubuntu-22.04/carla-0.9.15-cp310-cp310-linux_x86_64.whl"
+
+# ── Desktop remoto para ver o rviz (marco 8) ──────────────────────────────
+export VNC_DISPLAY=":99"    # display virtual (Xvfb); o container usa isto quando RVIZ=true
+export VNC_PORT="5900"      # porta do x11vnc (acesse via túnel SSH em localhost:5900)

@@ -127,11 +127,23 @@ docker exec -it $C bash -lc 'source /opt/autoware/setup.bash
 Checagem direta do CARLA: `python3 -c "import carla; w=carla.Client('localhost',2000); ..."` deve
 mostrar `map: Carla/Maps/Town01` e atores > 0.
 
-## 8. Dirigir e ver (o vídeo) — ⏳ próximo
-Dar o *goal pose* no **rviz** exige display. Como aqui **não é AWS** (NICE DCV precisa de licença fora
-da AWS), o caminho é **VNC + VirtualGL (EGL)** para rviz acelerado por GPU: sobe-se um display virtual
-no host, roda o container com `-e DISPLAY` + `-v /tmp/.X11-unix` e `RVIZ=true make run-autoware`, e
-conecta-se por VNC (túnel SSH). Aí: *2D Pose Estimate* → *2D Goal Pose* → ego dirige = entregável.
+## 8. Parte gráfica — ver e dirigir no rviz — ⏳
+Dar o *goal pose* exige display. Como **não é AWS** (NICE DCV precisa de licença fora da AWS), usa-se
+**desktop virtual (Xvfb) + VNC**, acessado por túnel SSH. Começa em **software GL** (simples); migra-se
+para VirtualGL/GPU se ficar lento.
+
+```bash
+# na VM: sobe o desktop virtual + VNC (idempotente)
+make desktop                    # Xvfb :99 + fluxbox + x11vnc em localhost:5900
+
+# no SEU PC: túnel SSH + cliente VNC (TigerVNC/RealVNC) em localhost:5900
+ssh -i ~/.ssh/SUA_CHAVE -L 5900:localhost:5900 <user>@<IP_DA_VM>
+
+# na VM, com o CARLA rodando (make run-carla), sobe o Autoware COM rviz:
+RVIZ=true make run-autoware     # encaminha o DISPLAY :99 para o container
+```
+No rviz (pela janela VNC): **2D Pose Estimate** (se não auto-inicializar) → **2D Goal Pose** → o ego
+planeja a rota e dirige. Grave a tela = vídeo-entregável da Fase 0.
 
 > Fontes da receita CARLA↔Autoware: [autoware_carla_interface (docs)](https://autowarefoundation.github.io/autoware_universe/main/simulator/autoware_carla_interface/)
 > · mapas [CARLA Autoware Contents](https://bitbucket.org/carla-simulator/autoware-contents/src/master/maps/)

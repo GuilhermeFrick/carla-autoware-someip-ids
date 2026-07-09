@@ -20,9 +20,16 @@ RVIZ="${RVIZ:-false}"
 LIGHT="${LIGHT:-false}"
 TTY=""; [ -t 1 ] && TTY="-t"   # -t só quando há terminal (permite piping para tee)
 
+# Com RVIZ=true, encaminha o display do desktop virtual (setup/07_desktop.sh) para o container.
+# LIBGL_ALWAYS_SOFTWARE=1 = GL por software (llvmpipe) — simples; troque por VirtualGL se ficar lento.
+XOPTS=""
+if [ "${RVIZ}" = "true" ]; then
+  XOPTS="-e DISPLAY=${VNC_DISPLAY:-:99} -e LIBGL_ALWAYS_SOFTWARE=1 -e QT_X11_NO_MITSHM=1 -v /tmp/.X11-unix:/tmp/.X11-unix"
+fi
+
 log "Autoware + interface CARLA (mapa ${CARLA_MAP}, rviz=${RVIZ}, light=${LIGHT}). CARLA precisa já estar rodando."
 # Monta em /root/autoware_data = data_path padrão do Autoware (onde ele procura mapa E modelos de ML).
-exec docker run --rm -i ${TTY} --gpus all --net=host \
+exec docker run --rm -i ${TTY} --gpus all --net=host ${XOPTS} \
   -v "${AUTOWARE_DATA}:/root/autoware_data" \
   "${AUTOWARE_IMAGE}" bash -lc "
     pip install --no-input '${CARLA_WHEEL_URL}' &&

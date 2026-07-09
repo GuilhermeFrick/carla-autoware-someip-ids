@@ -17,7 +17,10 @@ if ! docker image inspect "${IMG}" >/dev/null 2>&1; then
 fi
 
 log "rviz na GPU (VirtualGL/EGL) → DISPLAY ${VNC_DISPLAY:-:99} (janela VNC)"
+# NVIDIA_DRIVER_CAPABILITIES=all: expõe as libs GRÁFICAS (GL/EGL) da NVIDIA no container.
+# Sem isso o runtime só dá compute/utility (CUDA) e o VirtualGL cai para Mesa/llvmpipe (software).
 exec docker run --rm -it --gpus all --net=host \
+  -e NVIDIA_DRIVER_CAPABILITIES=all -e NVIDIA_VISIBLE_DEVICES=all \
   -e DISPLAY="${VNC_DISPLAY:-:99}" -e QT_X11_NO_MITSHM=1 \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
   -v "${AUTOWARE_DATA}:/root/autoware_data" \

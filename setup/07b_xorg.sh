@@ -6,7 +6,7 @@
 # Uso:  bash setup/07b_xorg.sh   (substitui o make desktop; depois: make rviz + make sunshine)
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 DISP="${VNC_DISPLAY:-:99}"
-RES="${VNC_RES%x*}"; RES="${RES:-1920x1080}"   # ex 1920x1080
+RES="${VNC_RES:-1920x1080x24}"; RES="${RES%x*}"   # tira a profundidade -> ex 1920x1080
 
 log "1/6 · Instalar Xorg + driver de entrada libinput + WM"
 sudo apt-get update

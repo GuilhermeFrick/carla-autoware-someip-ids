@@ -33,6 +33,9 @@ fi
 # encoder = vulkan: nesta VM o NVENC falha (cudaErrorInsufficientDriver), mas o Vulkan encoda
 # em HARDWARE na A6000. Evita as tentativas falhas de nvenc no startup.
 grep -q "^encoder" "${CONF}" 2>/dev/null || echo "encoder = vulkan" >> "${CONF}"
+# capture = x11: com Xorg real, o Sunshine usaria KMS e capturaria o scanout do monitor FÍSICO —
+# que num headless não existe → tela preta. X11 captura o framebuffer renderizado do :99.
+grep -q "^capture" "${CONF}" 2>/dev/null || echo "capture = x11" >> "${CONF}"
 
 log "3/3 · Iniciar Sunshine capturando o display ${DISP}"
 pkill -x sunshine 2>/dev/null || true; sleep 1   # reinicia p/ aplicar a config

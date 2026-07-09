@@ -30,8 +30,9 @@ if [[ -n "${TS_IP}" ]] && ! grep -q "csrf_allowed_origins" "${CONF}" 2>/dev/null
   echo "csrf_allowed_origins = https://${TS_IP}:47990" >> "${CONF}"
   ok "csrf_allowed_origins liberado para https://${TS_IP}:47990"
 fi
-# força o encoder NVENC (evita o caminho hevc_vulkan que crashava / caía para software)
-grep -q "^encoder" "${CONF}" 2>/dev/null || echo "encoder = nvenc" >> "${CONF}"
+# encoder = vulkan: nesta VM o NVENC falha (cudaErrorInsufficientDriver), mas o Vulkan encoda
+# em HARDWARE na A6000. Evita as tentativas falhas de nvenc no startup.
+grep -q "^encoder" "${CONF}" 2>/dev/null || echo "encoder = vulkan" >> "${CONF}"
 
 log "3/3 · Iniciar Sunshine capturando o display ${DISP}"
 pkill -x sunshine 2>/dev/null || true; sleep 1   # reinicia p/ aplicar a config

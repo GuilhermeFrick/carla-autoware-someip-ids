@@ -27,5 +27,6 @@ exec docker run --rm -it --gpus all --net=host \
   "${IMG}" bash -lc '
     source /opt/autoware/setup.bash
     # teste rápido: vglrun -d egl glxinfo | grep -i "renderer" deve mostrar a A6000
-    vglrun -d egl rviz2 -d /opt/autoware/share/autoware_launch/rviz/autoware.rviz
+    # use_sim_time:=true = alinhar ao /clock do CARLA (senão TFs não batem → tela preta + estados "Unknown").
+    vglrun -d egl rviz2 -d /opt/autoware/share/autoware_launch/rviz/autoware.rviz --ros-args -p use_sim_time:=true
   '

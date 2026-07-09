@@ -18,9 +18,10 @@ else
 fi
 
 log "2/2 · Subir Xvfb ${DISP} + fluxbox + x11vnc (porta ${PORT}, só localhost, sem senha)"
-pgrep -f "Xvfb ${DISP}"        >/dev/null || { Xvfb "${DISP}" -screen 0 "${RES}" >/tmp/xvfb.log 2>&1 & sleep 2; }
-pgrep -f "fluxbox"             >/dev/null || { DISPLAY="${DISP}" fluxbox >/tmp/fluxbox.log 2>&1 & sleep 1; }
-pgrep -f "x11vnc.*${PORT}"     >/dev/null || { x11vnc -display "${DISP}" -forever -shared -localhost -nopw -rfbport "${PORT}" >/tmp/x11vnc.log 2>&1 & sleep 2; }
+# nohup = sobrevive à queda da sessão SSH (não morre com SIGHUP).
+pgrep -f "Xvfb ${DISP}"    >/dev/null || { nohup Xvfb "${DISP}" -screen 0 "${RES}" >/tmp/xvfb.log 2>&1 & sleep 2; }
+pgrep -f "fluxbox"         >/dev/null || { nohup env DISPLAY="${DISP}" fluxbox >/tmp/fluxbox.log 2>&1 & sleep 1; }
+pgrep -f "x11vnc.*${PORT}" >/dev/null || { nohup x11vnc -display "${DISP}" -forever -shared -localhost -nopw -rfbport "${PORT}" >/tmp/x11vnc.log 2>&1 & sleep 2; }
 
 echo
 jobs 2>/dev/null || true
